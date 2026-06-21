@@ -1,0 +1,302 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Who Wants to Be a Millionaire?</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            background: radial-gradient(ellipse 130% 100% at 50% 55%, #000a44 0%, #000011 70%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Roboto Condensed', 'Arial Narrow', Arial, sans-serif;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        canvas.stars {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .spotlight {
+            position: fixed;
+            top: -320px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 1100px;
+            height: 750px;
+            background: radial-gradient(ellipse at center top, rgba(0, 80, 255, 0.13) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .game-container {
+            width: 100%;
+            max-width: 880px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ─── Header ─── */
+        .header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .show-title {
+            font-size: clamp(1rem, 2.6vw, 1.75rem);
+            font-weight: 700;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            background: linear-gradient(180deg, #fff 0%, #ffe066 35%, #ff8c00 65%, #ffe066 85%, #ffaa00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 10px rgba(255, 170, 0, 0.55));
+        }
+
+        .prize-amount {
+            font-size: clamp(2.2rem, 7vw, 4.2rem);
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(180deg, #fff 0%, #ffe066 28%, #ff8c00 52%, #ffe066 78%, #ffcc00 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            filter: drop-shadow(0 0 28px rgba(255, 140, 0, 0.95));
+            margin-top: 2px;
+        }
+
+        /* ─── Question box (octagon — cut corners) ─── */
+        .q-outer {
+            margin: 14px 0 16px;
+            padding: 2px;
+            background: linear-gradient(180deg, #6699ff 0%, #3366dd 25%, #cc7700 50%, #3366dd 75%, #6699ff 100%);
+            clip-path: polygon(16px 0%, calc(100% - 16px) 0%, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0% calc(100% - 16px), 0% 16px);
+            animation: borderPulse 3.5s ease-in-out infinite;
+        }
+
+        .q-inner {
+            background: linear-gradient(180deg, #001a88 0%, #000b44 100%);
+            clip-path: polygon(16px 0%, calc(100% - 16px) 0%, 100% 16px, 100% calc(100% - 16px), calc(100% - 16px) 100%, 16px 100%, 0% calc(100% - 16px), 0% 16px);
+            padding: 24px 48px;
+            text-align: center;
+            color: #fff;
+            font-size: clamp(1rem, 2.5vw, 1.38rem);
+            font-weight: 700;
+            line-height: 1.55;
+            min-height: 82px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes borderPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        /* ─── Answers grid ─── */
+        .answers-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        /* Answer box — pointed hexagon */
+        .a-outer {
+            padding: 2px;
+            background: linear-gradient(180deg, #5588ff 0%, #2255cc 30%, #cc7700 55%, #2255cc 75%, #5588ff 100%);
+            clip-path: polygon(26px 0%, calc(100% - 26px) 0%, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0% 50%);
+            cursor: pointer;
+            transition: background 0.22s ease;
+            user-select: none;
+        }
+
+        .a-outer:hover:not(.locked) {
+            background: linear-gradient(180deg, #ffee44 0%, #ff9900 40%, #ff5500 55%, #ff9900 75%, #ffee44 100%);
+        }
+
+        .a-outer.selected {
+            background: linear-gradient(180deg, #ffee44 0%, #ff9900 40%, #ff5500 55%, #ff9900 75%, #ffee44 100%);
+        }
+
+        .a-outer.correct {
+            background: linear-gradient(180deg, #aaff44 0%, #55cc00 40%, #228800 55%, #55cc00 75%, #aaff44 100%);
+        }
+
+        .a-outer.wrong {
+            background: linear-gradient(180deg, #ff6666 0%, #dd2200 40%, #991100 55%, #dd2200 75%, #ff6666 100%);
+        }
+
+        .a-inner {
+            background: linear-gradient(180deg, #001888 0%, #000d55 100%);
+            clip-path: polygon(26px 0%, calc(100% - 26px) 0%, 100% 50%, calc(100% - 26px) 100%, 26px 100%, 0% 50%);
+            padding: 15px 54px 15px 46px;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 60px;
+            font-size: clamp(0.82rem, 1.8vw, 1.08rem);
+            font-weight: 700;
+            line-height: 1.3;
+            transition: background 0.22s ease;
+        }
+
+        .a-outer:hover:not(.locked) .a-inner {
+            background: linear-gradient(180deg, #221400 0%, #130a00 100%);
+        }
+
+        .a-outer.selected .a-inner {
+            background: linear-gradient(180deg, #221400 0%, #130a00 100%);
+        }
+
+        .a-outer.correct .a-inner {
+            background: linear-gradient(180deg, #0d2200 0%, #071100 100%);
+        }
+
+        .a-outer.wrong .a-inner {
+            background: linear-gradient(180deg, #220000 0%, #110000 100%);
+        }
+
+        .a-label {
+            color: #88bbff;
+            font-size: 1.15em;
+            letter-spacing: 1px;
+            min-width: 22px;
+            flex-shrink: 0;
+        }
+
+        /* ─── Bottom hint ─── */
+        .hint {
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.18);
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 580px) {
+            .answers-grid { grid-template-columns: 1fr; }
+            .a-inner { padding: 14px 40px 14px 36px; }
+            .q-inner { padding: 20px 28px; }
+        }
+    </style>
+</head>
+<body>
+<canvas class="stars"></canvas>
+<div class="spotlight"></div>
+
+<div class="game-container">
+    <div class="header">
+        <div class="show-title">Who Wants to Be a Millionaire?</div>
+        <div class="prize-amount" id="prize-display"></div>
+    </div>
+
+    <div class="q-outer">
+        <div class="q-inner" id="question-text"></div>
+    </div>
+
+    <div class="answers-grid" id="answers-grid"></div>
+
+</div>
+
+<script>
+    // ═══════════════════════════════════════════════════
+    //   EDIT THIS SECTION TO CUSTOMIZE YOUR QUESTION
+    // ═══════════════════════════════════════════════════
+
+    const PRIZE = "$1,000,000";
+
+    const QUESTION = "Какое событие произошло в жизни Даши в последнее время";
+
+    const OPTIONS = [
+        "Сдала на права",
+        "Набила татуировку",
+        'Завела щенка',
+        "Выпила алголя и вела себя непотребно"
+    ];
+
+    // Index of the CORRECT answer: 0 = A, 1 = B, 2 = C, 3 = D
+    const CORRECT_ANSWER = 2;
+
+    // ═══════════════════════════════════════════════════
+
+    // Starfield
+    (function () {
+        const canvas = document.querySelector('canvas.stars');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            for (let i = 0; i < 200; i++) {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const r = Math.random() * 1.3 + 0.2;
+                const a = Math.random() * 0.65 + 0.1;
+                ctx.beginPath();
+                ctx.arc(x, y, r, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`;
+                ctx.fill();
+            }
+        }
+
+        draw();
+        window.addEventListener('resize', draw);
+    })();
+
+    // Build the game
+    const LABELS = ['A', 'B', 'C', 'D'];
+    let answered = false;
+
+    document.getElementById('prize-display').textContent = PRIZE;
+    document.getElementById('question-text').textContent = QUESTION;
+
+    const grid = document.getElementById('answers-grid');
+
+    OPTIONS.forEach((text, i) => {
+        const outer = document.createElement('div');
+        outer.className = 'a-outer';
+        outer.innerHTML = `
+                <div class="a-inner">
+                    <span class="a-label">${LABELS[i]}:</span>
+                    <span>${text}</span>
+                </div>`;
+
+        outer.addEventListener('click', () => {
+            if (answered) return;
+            answered = true;
+
+            const all = grid.querySelectorAll('.a-outer');
+            all.forEach(el => el.classList.add('locked'));
+            outer.classList.add('selected');
+
+            setTimeout(() => {
+                all.forEach((el, j) => {
+                    el.classList.remove('selected');
+                    if (j === CORRECT_ANSWER) el.classList.add('correct');
+                    else if (j === i) el.classList.add('wrong');
+                });
+            }, 1800);
+        });
+
+        grid.appendChild(outer);
+    });
+</script>
+</body>
+</html>
